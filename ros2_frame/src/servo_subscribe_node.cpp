@@ -1,4 +1,6 @@
 #include "ros2_frame/servo_node.hpp"
+#include <python3.10/object.h>
+#include <python3.10/tupleobject.h>
 #include <rclcpp/clock.hpp>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/node.hpp>
@@ -7,8 +9,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/utilities.hpp>
 
-ServoNode::ServoNode(std::string node_name) : 
-    Node(node_name) {
+ServoNode::ServoNode(std::string node_name,int des_angle) : 
+    Node(node_name) ,alpha(des_angle){
     //declare parameter
     this->declare_parameter("hz", 1000);
 
@@ -32,6 +34,19 @@ void ServoNode::changeMode(const std_msgs::msg::Int8 mode) {
 }
 
 void ServoNode::init_servo() {
+    // 初始化python接口  
+	Py_Initialize();
+    if(!Py_IsInitialized()){
+		RCLCPP_INFO(this->get_logger(), "python init fail!");
+		//return NULL;//???
+	}
+    // 初始化python系统文件路径，保证可以访问到 .py文件
+	PyRun_SimpleString("import sys");
+    PyRun_SimpleString("import os");
+    PyRun_SimpleString("sys.path.append(os.getcwd())");
+    //PyRun_SimpleString("sys.path.append('home/foggy/baozhen/baozheng/ros2_frame')");
+    PyRun_SimpleString("print(os.getcwd())");
+
     RCLCPP_INFO(this->get_logger(), "servo start init!");
     // 初始化参数
     A << 1, 1, 0, 1; // 状态转移矩阵
@@ -51,14 +66,31 @@ void ServoNode::init_servo() {
 }
 
 void ServoNode::drive_servo() {
+    // 调用python文件名
+	PyObject* pModule = PyImport_ImportModule("servo");
+	if( pModule == NULL ){
+        RCLCPP_INFO(this->get_logger(), "module not found!");
+		//return NULL;//???
+	}
+    // 取出函数
+	PyObject* pFunc = PyObject_GetAttrString(pModule,"servo_rotate");
+	//if( !pFunc || !PyCallable_Check(pFunc)){
+    if( !pFunc || !PyCallable_Check(pFunc)){
+        RCLCPP_INFO(this->get_logger(), "not found function servo_rotate!");
+		//return NULL;//???
+	}
     auto updatedState = kf.update(Eigen::Matrix<double, V_Z, 1>(recieved_angle), 1.0);
     filtered_angle = double(updatedState[0]);
     switch(this->mode){
         case 0:
             break;
-        case 1:
+        case 1:{
             //something to drive the servo
+            PyObject* pArgs = PyTuple_New(1);
+            PyTuple_SET_ITEM(pArgs, 0, Py_BuildValue("i",alpha));
+            PyObject_CallObject(pFunc, pArgs);
             break;
+        }
         default:
             RCLCPP_ERROR(this->get_logger(), "%d is not a valid mode!", this->mode);
     }
@@ -66,6 +98,8 @@ void ServoNode::drive_servo() {
 
 void ServoNode::close_servo() {
     //something to close the servo
+    //结束python接口初始化
+	Py_Finalize();
     RCLCPP_INFO(this->get_logger(),  "closed successfully!");
 }
 
