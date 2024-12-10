@@ -15,6 +15,22 @@ source install/setup.sh
 ros2 launch startup.py
 ```
 
+# topic
+
+```shell
+/servo_node/mode
+```
+
+```shell
+ros2 topic pub /servo_node/mode std_msgs::msg::Int8 {'1'} //启动
+```
+
+# config
+
+## 位置
+
+config/
+
 # 还有什么
 
 。。。。

@@ -25,7 +25,7 @@ ServoNode::ServoNode(std::string node_name) :
     //subscribe to the servo topic
     RCLCPP_INFO(this->get_logger(), "hz: %d", hz);
     servo_sub_ = this->create_subscription<std_msgs::msg::Int8>(
-        "mode",
+        "/servo_node/mode",
         rclcpp::QoS(rclcpp::KeepLast(1)).best_effort(),
         [this](const std_msgs::msg::Int8 mode) {
             this->changeMode(mode);
