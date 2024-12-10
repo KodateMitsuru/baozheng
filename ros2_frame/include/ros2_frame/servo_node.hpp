@@ -3,10 +3,11 @@
 #include <rclcpp/subscription.hpp>
 #include <string>
 #include "kalman.hpp"
+#include <python3.10/Python.h>
 
 class ServoNode : public rclcpp::Node {
 public:
-    ServoNode(std::string node_name); 
+    ServoNode(std::string node_name,int des_angle); 
     void init_servo();
     void drive_servo();
     void close_servo();
@@ -16,6 +17,7 @@ public:
 private:
     int mode = 0;
     int hz;
+    int alpha;//指定角度
     static constexpr int V_Z = 1; 
     static constexpr int V_X = 2; 
     double recieved_angle;
