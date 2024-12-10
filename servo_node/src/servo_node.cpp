@@ -1,5 +1,4 @@
-#include "ros2_frame/servo_node.hpp"
-#include <cstddef>
+#include "servo_node/servo_node.hpp"
 #include <pybind11/embed.h> 
 #include <rclcpp/clock.hpp>
 #include <rclcpp/logging.hpp>
@@ -8,17 +7,20 @@
 #include <rclcpp/rate.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/utilities.hpp>
+#include <string>
 
 namespace py = pybind11;
 
-ServoNode::ServoNode(std::string node_name,int des_angle) : 
-    Node(node_name) ,alpha(des_angle){
+ServoNode::ServoNode(std::string node_name) : 
+    Node(node_name){
     
     //declare parameter
     this->declare_parameter("hz", 1000);
+    this->declare_parameter("alpha", 180);
 
     //set parameter
     hz = this->get_parameter("hz").as_int();
+    alpha = this->get_parameter("alpha").as_int();
 
     //subscribe to the servo topic
     RCLCPP_INFO(this->get_logger(), "hz: %d", hz);
@@ -37,16 +39,23 @@ void ServoNode::changeMode(const std_msgs::msg::Int8 mode) {
 }
 
 void ServoNode::init_servo() {
-    
-    py::scoped_interpreter guard{};
-    py::exec(R"(import sys)");
-    py::exec(R"(sys.path.append('./ros2_frame/src/'))");
-    py::object servo = py::module_::import("servo");
-    if (servo.is_none()) {
-        RCLCPP_ERROR(this->get_logger(),"cant import!");
+    // 初始化python接口
+    py::initialize_interpreter();
+    RCLCPP_INFO(this->get_logger(), "Current working directory: %s", py::module_::import("os").attr("getcwd")().cast<std::string>().c_str());
+    py::exec(R"(sys.path.append(os.getcwd()+'/servo_node/src/'))");
+    RCLCPP_INFO(this->get_logger(), "sys.path: %s", py::str(py::module_::import("sys").attr("path")).cast<std::string>().c_str());
+
+    try {
+        servo = py::module_::import("servo");
+    } catch (py::error_already_set &e) {
+        RCLCPP_ERROR(this->get_logger(), "cant import! Error: %s", e.what());
+        close_servo();
+        rclcpp::shutdown();
     }
 
+    RCLCPP_INFO(this->get_logger(), "python module init successfully!");
     RCLCPP_INFO(this->get_logger(), "servo start init!");
+
     // 初始化参数
     A << 1, 1, 0, 1; // 状态转移矩阵
     H << 1, 0; // 观测矩阵
@@ -73,7 +82,12 @@ void ServoNode::drive_servo() {
             break;
         case 1:{
             //something to drive the servo
-            servo.attr("servo_rotate")(alpha);
+            try {
+                servo.attr("servo_rotate")(alpha);
+            } catch (py::error_already_set & ) {
+                RCLCPP_ERROR(this->get_logger(), "cant call servo_rotate!");
+                rclcpp::shutdown();
+            }
             break;
         }
         default:
@@ -84,21 +98,20 @@ void ServoNode::drive_servo() {
 void ServoNode::close_servo() {
     //something to close the servo
     //结束python接口初始化
-	Py_Finalize();
+    py::finalize_interpreter();
     RCLCPP_INFO(this->get_logger(),  "closed successfully!");
 }
 
 
 
 void ServoNode::main_loop() {
-    std::thread([this](){
-        init_servo();
-        rclcpp::Rate rate(hz);
-        while(rclcpp::ok()) {
-            rate.sleep();
-
-            drive_servo();
-        }
-        close_servo();
-    }).detach();
+    init_servo();
+    rclcpp::Rate rate(hz);
+    while(rclcpp::ok()) {
+        rate.sleep();
+        drive_servo();
+    }
+    close_servo();
 }
+
+

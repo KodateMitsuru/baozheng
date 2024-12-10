@@ -2,7 +2,6 @@
 
 使用ros2搭建的驱动框架
 
-
 # 编译
 
 ```bash
@@ -13,7 +12,7 @@ colcon build --symlink-install
 
 ```bash
 source install/setup.sh
-ros2 run ros2_frame ros2_frame
+ros2 launch startup.py
 ```
 
 # 还有什么

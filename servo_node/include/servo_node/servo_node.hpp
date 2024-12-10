@@ -9,12 +9,13 @@ namespace py = pybind11;
 
 class ServoNode : public rclcpp::Node {
 public:
-    ServoNode(std::string node_name,int des_angle); 
+    ServoNode(std::string node_name); 
     void init_servo();
     void drive_servo();
     void close_servo();
     void main_loop();
     void changeMode(const std_msgs::msg::Int8 mode);
+    py::object servo;
 
 private:
     int mode = 0;
@@ -25,8 +26,6 @@ private:
     double recieved_angle;
     double filtered_angle;
     double current_angle;
-
-    py::object servo;
 
     // 定义初始参数
     Eigen::Matrix<double, V_X, V_X> A; // 状态转移矩阵

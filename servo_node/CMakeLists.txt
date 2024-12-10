@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ros2_frame)
+project(servo_node)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -18,7 +18,8 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(Python REQUIRED Development)
+find_package(Python REQUIRED Development Interpreter)
+find_package(pybind11 REQUIRED)
 
 
 file(GLOB SOURCES "src/*.cpp")
@@ -27,7 +28,7 @@ include_directories(include)
 
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-target_link_libraries(ros2_frame Python::Python)
+target_link_libraries(${PROJECT_NAME} Python::Python pybind11::embed)
 ament_target_dependencies(${PROJECT_NAME} rclcpp std_msgs )
 
 install(
