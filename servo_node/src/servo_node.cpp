@@ -48,7 +48,7 @@ void ServoNode::init_servo() {
     try {
         servo = py::module_::import("servo");
     } catch (py::error_already_set &e) {
-        RCLCPP_ERROR(this->get_logger(), "cant import! Error: %s", e.what());
+        RCLCPP_ERROR(this->get_logger(), "Can't import! Error: %s", e.what());
         close_servo();
         rclcpp::shutdown();
     }
@@ -84,8 +84,9 @@ void ServoNode::drive_servo() {
             //something to drive the servo
             try {
                 servo.attr("servo_rotate")(alpha);
-            } catch (py::error_already_set & ) {
-                RCLCPP_ERROR(this->get_logger(), "cant call servo_rotate!");
+            } catch (py::error_already_set &e) {
+                RCLCPP_ERROR(this->get_logger(), "Cant call servo_rotate! Error: %s", e.what());
+                close_servo();
                 rclcpp::shutdown();
             }
             break;
@@ -112,6 +113,16 @@ void ServoNode::main_loop() {
         drive_servo();
     }
     close_servo();
+}
+
+int main(int argc, char** argv) {
+    rclcpp::init(argc, argv);
+    auto servo_node = std::make_shared<ServoNode>(std::string("servo_node"));
+    servo_node->main_loop();
+
+    rclcpp::spin(servo_node);
+    rclcpp::shutdown();
+    return 0;
 }
 
 

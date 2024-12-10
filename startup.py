@@ -1,7 +1,5 @@
-import launch
-from launch_ros.actions import ComposableNodeContainer
+from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
@@ -12,5 +10,4 @@ def generate_launch_description():
         output="screen",
     )
 
-    return launch.LaunchDescription([servo_node])
-    # return launch.LaunchDescription([container, robot_node, debug_node])
+    return LaunchDescription([servo_node])
