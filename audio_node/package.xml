@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>servo_node</name>
+  <name>audio_node</name>
   <version>0.0.0</version>
-  <description>servo_node</description>
+  <description>audio_node</description>
   <maintainer email="hh178239456@gmail.com">kodatemitsuru</maintainer>
   <license>GPL-3.0-only</license>
 
@@ -12,8 +12,6 @@
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
   <depend>ament_index_cpp</depend>
-  <depend>Python::Python</depend>
-  <depend>pybind11::embed</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
