@@ -7,7 +7,7 @@
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    auto servo_node = std::make_shared<ServoNode>(std::string("servo_node"),180);
+    auto servo_node = std::make_shared<ServoNode>(std::string("servo_node"));
     servo_node->main_loop();
 
     rclcpp::executors::MultiThreadedExecutor executor;
