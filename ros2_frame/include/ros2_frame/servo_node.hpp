@@ -3,7 +3,9 @@
 #include <rclcpp/subscription.hpp>
 #include <string>
 #include "kalman.hpp"
-#include <python3.10/Python.h>
+#include <pybind11/embed.h>
+
+namespace py = pybind11;
 
 class ServoNode : public rclcpp::Node {
 public:
@@ -23,6 +25,8 @@ private:
     double recieved_angle;
     double filtered_angle;
     double current_angle;
+
+    py::object servo;
 
     // 定义初始参数
     Eigen::Matrix<double, V_X, V_X> A; // 状态转移矩阵

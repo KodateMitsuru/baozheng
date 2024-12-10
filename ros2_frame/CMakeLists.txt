@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.21)
 project(ros2_frame)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -18,6 +18,8 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(Python REQUIRED Development)
+
 
 file(GLOB SOURCES "src/*.cpp")
 
@@ -25,7 +27,8 @@ include_directories(include)
 
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-ament_target_dependencies(${PROJECT_NAME} rclcpp std_msgs)
+target_link_libraries(ros2_frame Python::Python)
+ament_target_dependencies(${PROJECT_NAME} rclcpp std_msgs )
 
 install(
     TARGETS ${PROJECT_NAME}
