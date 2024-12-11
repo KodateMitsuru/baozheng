@@ -1,4 +1,4 @@
 /**:
   ros__parameters:
-    hz: 1000
+    hz: 10
     alpha: 180

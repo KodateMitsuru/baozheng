@@ -19,10 +19,12 @@ ros2 launch startup.py
 
 ```shell
 /servo_node/mode
+/audio_node/play
 ```
 
 ```shell
-ros2 topic pub /servo_node/mode std_msgs::msg::Int8 {'1'} //启动
+ros2 topic pub /servo_node/mode std_msgs/msg/Int8 'data: 1' #启动舵机
+ros2 topic pub /audio_node/play std_msgs/msg/String "data: 'assets/otto.wav'" -1
 ```
 
 # config

@@ -15,6 +15,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 
+find_package(SDL REQUIRED)
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
     libavdevice
@@ -25,14 +27,16 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
     libswscale
     libavutil
 )
+pkg_check_modules(ALSA REQUIRED alsa)
 
 file(GLOB SOURCES "src/*.cpp")
 
 include_directories(include)
+include_directories(${ALSA_INCLUDE_DIRS})
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-target_link_libraries(${PROJECT_NAME} PkgConfig::LIBAV)
-ament_target_dependencies(${PROJECT_NAME} rclcpp std_msgs )
+target_link_libraries(${PROJECT_NAME} PkgConfig::LIBAV ${ALSA_LIBRARIES})
+ament_target_dependencies(${PROJECT_NAME} rclcpp std_msgs)
 
 install(
     TARGETS ${PROJECT_NAME}

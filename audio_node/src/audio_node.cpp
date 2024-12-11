@@ -1,24 +1,10 @@
 #include <audio_node/audio_node.hpp>
-#include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/string.hpp>
-#include <memory>
-#include <string>
-#include <thread>
-#include <chrono>
-#include <iostream>
-#include <vector>
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-#include <libavutil/opt.h>
-#include <libswresample/swresample.h>
 #include <libavutil/channel_layout.h>
-#include <alsa/asoundlib.h>
+#include <memory>
+#include <rclcpp/logging.hpp>
+#include <rclcpp/rclcpp.hpp>
 
-AudioNode::AudioNode(const std::string node_name) : Node(node_name) {
-    
-    // declare parameter
-    this->declare_parameter("audio_file", "assets/audio.wav");
-    
+AudioNode::AudioNode(const std::string node_name) : Node(node_name){
     // subscribe to the audio topic
     audio_sub_ = this->create_subscription<std_msgs::msg::String>(
         "/audio_node/play",
@@ -29,135 +15,169 @@ AudioNode::AudioNode(const std::string node_name) : Node(node_name) {
     );
 }
 
+bool AudioNode::is_audio_playing;
+
+void AudioNode::init_audio() {
+    int ret = snd_pcm_open(&pcm_handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
+    if (ret < 0) {
+        RCLCPP_ERROR(this->get_logger(), "Could not open PCM device: %s", snd_strerror(ret));
+        rclcpp::shutdown();
+    }
+        // 设置硬件参数
+    snd_pcm_hw_params_alloca(&params);
+    snd_pcm_hw_params_any(pcm_handle, params);
+    snd_pcm_hw_params_set_access(pcm_handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
+    snd_pcm_hw_params_set_format(pcm_handle, params, SND_PCM_FORMAT_S16_LE);
+    snd_pcm_hw_params_set_channels(pcm_handle, params, 2);
+    snd_pcm_hw_params_set_rate(pcm_handle, params, 44100, 0);
+    // 设置硬件参数后，应用它们
+    if (snd_pcm_hw_params(pcm_handle, params) < 0) {
+        RCLCPP_ERROR(this->get_logger(), "无法设置 PCM 硬件参数");
+        rclcpp::shutdown();
+    }
+}
+
 void AudioNode::play_audio(const std::string &file_path) {
+    this->init_audio();
 
-
-        AVFormatContext *format_ctx = avformat_alloc_context();
-        if (avformat_open_input(&format_ctx, file_path.c_str(), nullptr, nullptr) != 0) {
-            RCLCPP_ERROR(this->get_logger(), "Could not open file: %s", file_path.c_str());
-            return;
-        }
-
-        if (avformat_find_stream_info(format_ctx, nullptr) < 0) {
-            RCLCPP_ERROR(this->get_logger(), "Could not find stream information");
-            avformat_close_input(&format_ctx);
-            return;
-        }
-
-        const AVCodec *codec = nullptr;
-        AVCodecParameters *codec_params = nullptr;
-        int audio_stream_index = -1;
-
-        for (unsigned int i = 0; i < format_ctx->nb_streams; i++) {
-            AVCodecParameters *local_codec_params = format_ctx->streams[i]->codecpar;
-            const AVCodec *local_codec = avcodec_find_decoder(local_codec_params->codec_id);
-
-            if (local_codec_params->codec_type == AVMEDIA_TYPE_AUDIO) {
-                audio_stream_index = i;
-                codec = local_codec;
-                codec_params = local_codec_params;
-                break;
-            }
-        }
-
-        if (audio_stream_index == -1) {
-            RCLCPP_ERROR(this->get_logger(), "Could not find audio stream");
-            avformat_close_input(&format_ctx);
-            return;
-        }
-
-        AVCodecContext *codec_ctx = avcodec_alloc_context3(codec);
-        if (!codec_ctx) {
-            RCLCPP_ERROR(this->get_logger(), "Could not allocate codec context");
-            avformat_close_input(&format_ctx);
-            return;
-        }
-
-        if (avcodec_parameters_to_context(codec_ctx, codec_params) < 0) {
-            RCLCPP_ERROR(this->get_logger(), "Could not initialize codec context");
-            avcodec_free_context(&codec_ctx);
-            avformat_close_input(&format_ctx);
-            return;
-        }
-
-        if (avcodec_open2(codec_ctx, codec, nullptr) < 0) {
-            RCLCPP_ERROR(this->get_logger(), "Could not open codec");
-            avcodec_free_context(&codec_ctx);
-            avformat_close_input(&format_ctx);
-            return;
-        }
-
-        SwrContext *swr_ctx = swr_alloc();
-        int64_t in_channel_layout = av_get_channel_layout_nb_channels(codec_ctx->ch_layout.nb_channels);
-        int64_t out_channel_layout = av_get_channel_layout_nb_channels(codec_ctx->ch_layout.nb_channels);
-        av_opt_set_int(swr_ctx, "in_channel_layout", in_channel_layout, 0);
-        av_opt_set_int(swr_ctx, "out_channel_layout", out_channel_layout, 0);
-        av_opt_set_int(swr_ctx, "in_sample_rate", codec_ctx->sample_rate, 0);
-        av_opt_set_int(swr_ctx, "out_sample_rate", codec_ctx->sample_rate, 0);
-        av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", codec_ctx->sample_fmt, 0);
-        av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_S16, 0);
-        swr_init(swr_ctx);
-
-        snd_pcm_t *pcm_handle;
-        snd_pcm_hw_params_t *params;
-        unsigned int sample_rate = codec_ctx->sample_rate;
-        int dir;
-
-        if (snd_pcm_open(&pcm_handle, "default", SND_PCM_STREAM_PLAYBACK, 0) < 0) {
-            RCLCPP_ERROR(this->get_logger(), "Could not open audio device");
-            swr_free(&swr_ctx);
-            avcodec_free_context(&codec_ctx);
-            avformat_close_input(&format_ctx);
-            return;
-        }
-
-        snd_pcm_hw_params_alloca(&params);
-        snd_pcm_hw_params_any(pcm_handle, params);
-        snd_pcm_hw_params_set_access(pcm_handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
-        snd_pcm_hw_params_set_format(pcm_handle, params, SND_PCM_FORMAT_S16_LE);
-        snd_pcm_hw_params_set_channels(pcm_handle, params, codec_ctx->channels);
-        snd_pcm_hw_params_set_rate_near(pcm_handle, params, &sample_rate, &dir);
-        snd_pcm_hw_params(pcm_handle, params);
-
-        AVPacket *packet = av_packet_alloc();
-        AVFrame *frame = av_frame_alloc();
-        uint8_t **converted_data = nullptr;
-        int max_samples = 0;
-
-        while (av_read_frame(format_ctx, packet) >= 0) {
-            if (packet->stream_index == audio_stream_index) {
-                if (avcodec_send_packet(codec_ctx, packet) >= 0) {
-                    while (avcodec_receive_frame(codec_ctx, frame) >= 0) {
-                        int num_samples = swr_get_out_samples(swr_ctx, frame->nb_samples);
-                        if (num_samples > max_samples) {
-                            if (converted_data) {
-                                av_freep(&converted_data[0]);
-                            }
-                            av_samples_alloc_array_and_samples(&converted_data, nullptr, codec_ctx->channels, num_samples, AV_SAMPLE_FMT_S16, 0);
-                            max_samples = num_samples;
-                        }
-
-                        swr_convert(swr_ctx, converted_data, num_samples, (const uint8_t **)frame->data, frame->nb_samples);
-                        snd_pcm_writei(pcm_handle, converted_data[0], num_samples);
-                    }
-                }
-            }
-            av_packet_unref(packet);
-        }
-
-        if (converted_data) {
-            av_freep(&converted_data[0]);
-        }
-        av_freep(&converted_data);
-        av_frame_free(&frame);
-        av_packet_free(&packet);
-        snd_pcm_drain(pcm_handle);
-        snd_pcm_close(pcm_handle);
-        swr_free(&swr_ctx);
-        avcodec_free_context(&codec_ctx);
-        avformat_close_input(&format_ctx);
+    RCLCPP_INFO(this->get_logger(), "Playing audio file: %s", file_path.c_str());
+    // Open the audio file
+    if (avformat_open_input(&format_ctx, file_path.c_str(), nullptr, nullptr) != 0) {
+        RCLCPP_ERROR(this->get_logger(), "Could not open audio file: %s", file_path.c_str());
+        return;
     }
 
+    // Retrieve stream information
+    if (avformat_find_stream_info(format_ctx, nullptr) < 0) {
+        RCLCPP_ERROR(this->get_logger(), "Could not find stream information");
+        return;
+    }
+
+    // Find the first audio stream
+    int audio_stream_index = -1;
+    for (unsigned i = 0; i < format_ctx->nb_streams; i++) {
+        if (format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+            audio_stream_index = i;
+            break;
+        }
+    }
+
+    if (audio_stream_index == -1) {
+        RCLCPP_ERROR(this->get_logger(), "Could not find audio stream");
+        return;
+    }
+    
+    // Open the codec context for the audio stream
+    AVCodecContext *codec_ctx = avcodec_alloc_context3(nullptr);
+    if (!codec_ctx) {
+        RCLCPP_ERROR(this->get_logger(), "Could not allocate codec context");
+        return;
+    }
+    if (avcodec_parameters_to_context(codec_ctx, format_ctx->streams[audio_stream_index]->codecpar) < 0) {
+        RCLCPP_ERROR(this->get_logger(), "Could not copy codec parameters to codec context");
+        return;
+    }
+    if (!avcodec_find_decoder(codec_ctx->codec_id)) {
+        RCLCPP_ERROR(this->get_logger(), "Could not find decoder");
+        return;
+    }
+    if (avcodec_open2(codec_ctx, avcodec_find_decoder(codec_ctx->codec_id), nullptr) < 0) {
+        RCLCPP_ERROR(this->get_logger(), "Could not open codec");
+        return;
+    }
+    AVChannelLayout out_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
+    AVChannelLayout in_ch_layout = codec_ctx->ch_layout;
+    swr_alloc_set_opts2(
+        &swr_ctx,
+        &out_ch_layout,
+        AV_SAMPLE_FMT_S16,                   // 输出采样格式（16 位）
+        44100,                               // 输出采样率
+        &in_ch_layout,  // 输入通道布局
+        codec_ctx->sample_fmt,               // 输入采样格式
+        codec_ctx->sample_rate,              // 输入采样率
+        0, nullptr
+    );
+    if (swr_init(swr_ctx) < 0) {
+        RCLCPP_ERROR(this->get_logger(), "无法初始化重采样上下文");
+        return;
+    }
+    // Allocate packet and frame
+    packet = av_packet_alloc();
+    frame = av_frame_alloc();
+    is_audio_playing = true;
+    while (av_read_frame(format_ctx, packet) >= 0 && rclcpp::ok() && is_audio_playing) {
+        if (packet->stream_index == audio_stream_index) {
+            if (avcodec_send_packet(codec_ctx, packet) < 0) {
+                break;
+            }
+            while (avcodec_receive_frame(codec_ctx, frame) >= 0) {
+                // 计算输出采样数
+                int out_samples = av_rescale_rnd(
+                    swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
+                    44100, codec_ctx->sample_rate, AV_ROUND_UP
+                );
+
+                // 分配输出缓冲区
+                int out_channels = 2; // 立体声
+                int out_buffer_size = av_samples_get_buffer_size(
+                    nullptr, out_channels, out_samples, AV_SAMPLE_FMT_S16, 1
+                );
+                uint8_t *out_buffer = (uint8_t *)av_malloc(out_buffer_size);
+
+                // 进行重采样和格式转换
+                int converted_samples = swr_convert(
+                    swr_ctx,
+                    &out_buffer,
+                    out_samples,
+                    (const uint8_t **)frame->data,
+                    frame->nb_samples
+                );
+                if (converted_samples < 0) {
+                    RCLCPP_ERROR(this->get_logger(), "重采样时出错");
+                    av_free(out_buffer);
+                    break;
+                }
+
+                // 写入 PCM 设备
+                int frames_written = snd_pcm_writei(pcm_handle, out_buffer, converted_samples);
+                if (frames_written < 0) {
+                    if (frames_written == -EPIPE) {
+                        // 缓冲区溢出，需要恢复 PCM 设备
+                        snd_pcm_prepare(pcm_handle);
+                    } else if (frames_written == -ESTRPIPE) {
+                        // 流暂停，需要恢复
+                        while ((frames_written = snd_pcm_resume(pcm_handle)) == -EAGAIN) {
+                            sleep(1); // 等待一段时间后重试
+                        }
+                        if (frames_written < 0) {
+                            snd_pcm_prepare(pcm_handle);
+                        }
+                    } else {
+                        RCLCPP_ERROR(this->get_logger(), "PCM 写入错误: %s", snd_strerror(frames_written));
+                    }
+                }
+
+                av_free(out_buffer);
+            }
+        }
+        av_packet_unref(packet);
+    }
+    is_audio_playing = false;
+    RCLCPP_INFO(this->get_logger(), "Audio playback finished");
+
+    // 清理
+    swr_free(&swr_ctx);
+    av_frame_free(&frame);
+    av_packet_free(&packet);
+    avcodec_free_context(&codec_ctx);
+    avformat_close_input(&format_ctx);
+    this->close_audio();
+}
+
+void AudioNode::close_audio() {
+    snd_pcm_drain(pcm_handle);
+    snd_pcm_close(pcm_handle);
+}
 
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);

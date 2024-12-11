@@ -1,3 +1,6 @@
+#ifndef SERVO_NODE_HPP
+#define SERVO_NODE_HPP
+
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/int8.hpp>
 #include <rclcpp/subscription.hpp>
@@ -39,3 +42,5 @@ private:
 
     // rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr debug_pub_;
 };
+
+#endif /* SERVO_NODE_HPP */

@@ -9,5 +9,10 @@ def generate_launch_description():
         parameters=["config/servo_node.yaml"],
         output="screen",
     )
+    audio_node = Node(
+        package="audio_node",
+        executable="audio_node",
+        output="screen",
+    )
 
-    return LaunchDescription([servo_node])
+    return LaunchDescription([servo_node, audio_node])

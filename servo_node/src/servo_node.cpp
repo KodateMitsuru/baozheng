@@ -15,7 +15,7 @@ ServoNode::ServoNode(std::string node_name) :
     Node(node_name){
     
     //declare parameter
-    this->declare_parameter("hz", 1000);
+    this->declare_parameter("hz", 1);
     this->declare_parameter("alpha", 180);
 
     //set parameter
@@ -27,8 +27,8 @@ ServoNode::ServoNode(std::string node_name) :
     servo_sub_ = this->create_subscription<std_msgs::msg::Int8>(
         "/servo_node/mode",
         rclcpp::QoS(rclcpp::KeepLast(1)).best_effort(),
-        [this](const std_msgs::msg::Int8 mode) {
-            this->changeMode(mode);
+        [this](const std_msgs::msg::Int8::SharedPtr msg) {
+            changeMode(*msg);
         }
     );
 }
@@ -42,6 +42,7 @@ void ServoNode::init_servo() {
     // 初始化python接口
     py::initialize_interpreter();
     RCLCPP_INFO(this->get_logger(), "Current working directory: %s", py::module_::import("os").attr("getcwd")().cast<std::string>().c_str());
+    py::exec(R"(import sys)");
     py::exec(R"(sys.path.append(os.getcwd()+'/servo_node/src/'))");
     RCLCPP_INFO(this->get_logger(), "sys.path: %s", py::str(py::module_::import("sys").attr("path")).cast<std::string>().c_str());
 
@@ -84,6 +85,7 @@ void ServoNode::drive_servo() {
             //something to drive the servo
             try {
                 servo.attr("servo_rotate")(alpha);
+                RCLCPP_INFO(this->get_logger(), "servo_rotate(%d)", alpha);
             } catch (py::error_already_set &e) {
                 RCLCPP_ERROR(this->get_logger(), "Cant call servo_rotate! Error: %s", e.what());
                 close_servo();
@@ -106,18 +108,21 @@ void ServoNode::close_servo() {
 
 
 void ServoNode::main_loop() {
-    init_servo();
-    rclcpp::Rate rate(hz);
-    while(rclcpp::ok()) {
-        rate.sleep();
-        drive_servo();
-    }
-    close_servo();
+    std::thread([this](){
+        init_servo();
+        rclcpp::Rate rate(hz);
+        while(rclcpp::ok()) {
+            rate.sleep();
+            drive_servo();
+        }
+        close_servo();
+    }).detach();
 }
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto servo_node = std::make_shared<ServoNode>(std::string("servo_node"));
+    
     servo_node->main_loop();
 
     rclcpp::spin(servo_node);
