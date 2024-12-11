@@ -42,7 +42,7 @@ void ServoNode::init_servo() {
     // 初始化python接口
     py::initialize_interpreter();
     RCLCPP_INFO(this->get_logger(), "Current working directory: %s", py::module_::import("os").attr("getcwd")().cast<std::string>().c_str());
-    py::exec(R"(import sys)");
+    py::exec(R"(import sys,os)");
     py::exec(R"(sys.path.append(os.getcwd()+'/servo_node/src/'))");
     RCLCPP_INFO(this->get_logger(), "sys.path: %s", py::str(py::module_::import("sys").attr("path")).cast<std::string>().c_str());
 
