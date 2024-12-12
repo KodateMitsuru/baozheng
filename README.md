@@ -24,7 +24,8 @@ ros2 launch startup.py
 
 ```shell
 ros2 topic pub /servo_node/mode std_msgs/msg/Int8 'data: 1' #启动舵机
-ros2 topic pub /audio_node/play std_msgs/msg/String "data: 'assets/otto0.wav'" -1
+ros2 topic pub /audio_node/play std_msgs/msg/String "data: 'assets/otto0.wav'" -1 #播放音频
+ros2 topic pub /audio_node/stop std_msgs/msg/Bool "data: true" -1 #停止音频
 ```
 
 # config
@@ -49,10 +50,8 @@ otto_bxsn -- 波西唢呐狂想曲
 
 # known_bugs
 
-mp3 停止较为缓慢
 目前舵机控制需要root
 
 # 还有什么
 
 。。。。
-

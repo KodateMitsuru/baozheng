@@ -3,6 +3,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <rclcpp/subscription.hpp>
 #include <string>
 #include <alsa/asoundlib.h>
@@ -23,7 +24,8 @@ class AudioNode : public rclcpp::Node {
         void play_audio(const std::string &file_path);
         void close_audio();
     private:
-        rclcpp::Subscription<std_msgs::msg::String>::SharedPtr audio_sub_;
+        rclcpp::Subscription<std_msgs::msg::String>::SharedPtr audio_sub_play;
+        rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr audio_sub_stop;
         AVFormatContext* format_ctx;
         AVCodecContext* codec_ctx;
         AVCodec* codec;
@@ -32,7 +34,7 @@ class AudioNode : public rclcpp::Node {
         SwrContext *swr_ctx;
         snd_pcm_t *pcm_handle;
         snd_pcm_hw_params_t *params;
-        static bool is_audio_playing;
+        static std::atomic<bool>  is_audio_playing;
 };
 
 #endif /* AUDIO_NODE_HPP */

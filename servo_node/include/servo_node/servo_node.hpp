@@ -10,7 +10,7 @@
 
 namespace py = pybind11;
 
-class ServoNode : public rclcpp::Node {
+class __attribute__ ((visibility ("hidden"))) ServoNode : public rclcpp::Node {
 public:
     ServoNode(std::string node_name); 
     void init_servo();
@@ -18,7 +18,6 @@ public:
     void close_servo();
     void main_loop();
     void changeMode(const std_msgs::msg::Int8 mode);
-    py::object servo;
 
 private:
     int mode = 0;
@@ -29,6 +28,7 @@ private:
     double recieved_angle;
     double filtered_angle;
     double current_angle;
+    py::object servo;
 
     // 定义初始参数
     Eigen::Matrix<double, V_X, V_X> A; // 状态转移矩阵
@@ -40,7 +40,6 @@ private:
     Kalman<V_Z, V_X> kf;
     rclcpp::Subscription<std_msgs::msg::Int8>::SharedPtr servo_sub_;
 
-    // rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr debug_pub_;
 };
 
 #endif /* SERVO_NODE_HPP */

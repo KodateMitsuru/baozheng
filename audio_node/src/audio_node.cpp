@@ -1,21 +1,32 @@
 #include <audio_node/audio_node.hpp>
-#include <libavutil/channel_layout.h>
-#include <memory>
-#include <rclcpp/logging.hpp>
-#include <rclcpp/rclcpp.hpp>
+#include <thread>
 
 AudioNode::AudioNode(const std::string node_name) : Node(node_name){
     // subscribe to the audio topic
-    audio_sub_ = this->create_subscription<std_msgs::msg::String>(
+    audio_sub_play = this->create_subscription<std_msgs::msg::String>(
         "/audio_node/play",
         rclcpp::QoS(rclcpp::KeepLast(1)).best_effort(),
         [this](const std_msgs::msg::String file_path) {
-            this->play_audio(file_path.data);
+            if (is_audio_playing) {
+                RCLCPP_ERROR(get_logger(), "Audio is already playing");
+            } else std::thread([this, file_path](){this->play_audio(file_path.data);}).detach();
+        }
+    );
+    audio_sub_stop = this->create_subscription<std_msgs::msg::Bool>(
+        "/audio_node/stop",
+        rclcpp::QoS(rclcpp::KeepLast(1)).best_effort(),
+        [this](const std_msgs::msg::Bool stop) {
+            if (stop.data) {
+                if (is_audio_playing.load()) {
+                    is_audio_playing.store(false);
+                    RCLCPP_INFO(this->get_logger(), "Stopping audio playback");
+                } else RCLCPP_ERROR(this->get_logger(), "No audio is playing");
+            }
         }
     );
 }
 
-bool AudioNode::is_audio_playing;
+std::atomic<bool>  AudioNode::is_audio_playing;
 
 void AudioNode::init_audio() {
     int ret = snd_pcm_open(&pcm_handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
@@ -23,7 +34,7 @@ void AudioNode::init_audio() {
         RCLCPP_ERROR(this->get_logger(), "Could not open PCM device: %s", snd_strerror(ret));
         rclcpp::shutdown();
     }
-        // 设置硬件参数
+    // 设置硬件参数
     snd_pcm_hw_params_alloca(&params);
     snd_pcm_hw_params_any(pcm_handle, params);
     snd_pcm_hw_params_set_access(pcm_handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
@@ -81,6 +92,7 @@ void AudioNode::play_audio(const std::string &file_path) {
         RCLCPP_ERROR(this->get_logger(), "Could not find decoder");
         return;
     }
+    codec_ctx->pkt_timebase = format_ctx->streams[audio_stream_index]->time_base;
     if (avcodec_open2(codec_ctx, avcodec_find_decoder(codec_ctx->codec_id), nullptr) < 0) {
         RCLCPP_ERROR(this->get_logger(), "Could not open codec");
         return;
@@ -104,13 +116,13 @@ void AudioNode::play_audio(const std::string &file_path) {
     // Allocate packet and frame
     packet = av_packet_alloc();
     frame = av_frame_alloc();
-    is_audio_playing = true;
-    while (av_read_frame(format_ctx, packet) >= 0 && rclcpp::ok() && is_audio_playing) {
+    is_audio_playing.store(true);
+    while (av_read_frame(format_ctx, packet) >= 0 && rclcpp::ok() && is_audio_playing.load()) {
         if (packet->stream_index == audio_stream_index) {
             if (avcodec_send_packet(codec_ctx, packet) < 0) {
                 break;
             }
-            while (avcodec_receive_frame(codec_ctx, frame) >= 0) {
+            while (avcodec_receive_frame(codec_ctx, frame) >= 0 && rclcpp::ok() && is_audio_playing.load()) {
                 // 计算输出采样数
                 int out_samples = av_rescale_rnd(
                     swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
@@ -162,7 +174,7 @@ void AudioNode::play_audio(const std::string &file_path) {
         }
         av_packet_unref(packet);
     }
-    is_audio_playing = false;
+    is_audio_playing.store(false);
     RCLCPP_INFO(this->get_logger(), "Audio playback finished");
 
     // 清理
@@ -175,7 +187,7 @@ void AudioNode::play_audio(const std::string &file_path) {
 }
 
 void AudioNode::close_audio() {
-    snd_pcm_drain(pcm_handle);
+    snd_pcm_drop(pcm_handle);
     snd_pcm_close(pcm_handle);
 }
 

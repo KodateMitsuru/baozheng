@@ -1,13 +1,4 @@
 #include "servo_node/servo_node.hpp"
-#include <pybind11/embed.h> 
-#include <rclcpp/clock.hpp>
-#include <rclcpp/logging.hpp>
-#include <rclcpp/node.hpp>
-#include <rclcpp/qos.hpp>
-#include <rclcpp/rate.hpp>
-#include <rclcpp/rclcpp.hpp>
-#include <rclcpp/utilities.hpp>
-#include <string>
 
 namespace py = pybind11;
 
