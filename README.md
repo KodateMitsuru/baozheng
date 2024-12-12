@@ -50,7 +50,7 @@ assets
 │   └── otto_bxsn.mp3
 ├── tokens
 │   ├── _.wav
-|   ├── ...
+│   ├── ...
 │   └── zuo.wav
 └── ysddTokens
     ├── bbd.wav
