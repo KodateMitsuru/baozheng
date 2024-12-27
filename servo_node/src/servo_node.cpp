@@ -1,6 +1,5 @@
 #include "servo_node/servo_node.hpp"
-
-namespace py = pybind11;
+#include "servo_node/servo.hpp"
 
 ServoNode::ServoNode(std::string node_name) : 
     Node(node_name){
@@ -30,22 +29,7 @@ void ServoNode::changeMode(const std_msgs::msg::Int8 mode) {
 }
 
 void ServoNode::init_servo() {
-    // 初始化python接口
-    py::initialize_interpreter();
-    RCLCPP_INFO(this->get_logger(), "Current working directory: %s", py::module_::import("os").attr("getcwd")().cast<std::string>().c_str());
-    py::exec(R"(import sys,os)");
-    py::exec(R"(sys.path.append(os.getcwd()+'/servo_node/src/'))");
-    RCLCPP_INFO(this->get_logger(), "sys.path: %s", py::str(py::module_::import("sys").attr("path")).cast<std::string>().c_str());
 
-    try {
-        servo = py::module_::import("servo");
-    } catch (py::error_already_set &e) {
-        RCLCPP_ERROR(this->get_logger(), "Can't import! Error: %s", e.what());
-        close_servo();
-        rclcpp::shutdown();
-    }
-
-    RCLCPP_INFO(this->get_logger(), "python module init successfully!");
     RCLCPP_INFO(this->get_logger(), "servo start init!");
 
     // 初始化参数
@@ -74,14 +58,9 @@ void ServoNode::drive_servo() {
             break;
         case 1:{
             //something to drive the servo
-            try {
-                servo.attr("servo_rotate")(alpha);
-                RCLCPP_INFO(this->get_logger(), "servo_rotate(%d)", alpha);
-            } catch (py::error_already_set &e) {
-                RCLCPP_ERROR(this->get_logger(), "Cant call servo_rotate! Error: %s", e.what());
-                close_servo();
-                rclcpp::shutdown();
-            }
+            servo_rotate(alpha);
+            RCLCPP_INFO(this->get_logger(), "servo_rotate(%d)", alpha);
+            // servo_rotate(40);
             break;
         }
         default:
@@ -91,8 +70,6 @@ void ServoNode::drive_servo() {
 
 void ServoNode::close_servo() {
     //something to close the servo
-    //结束python接口初始化
-    py::finalize_interpreter();
     RCLCPP_INFO(this->get_logger(),  "closed successfully!");
 }
 

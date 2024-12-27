@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 
 # find dependencies
@@ -18,8 +19,10 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(Python REQUIRED Development Interpreter)
-find_package(pybind11 REQUIRED)
+find_package(wiringPi REQUIRED)
+# Include headers
+include_directories(${WIRINGPI_INCLUDE_DIRS}) 
+
 
 
 file(GLOB SOURCES "src/*.cpp")
@@ -28,7 +31,8 @@ include_directories(include)
 
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-target_link_libraries(${PROJECT_NAME} Python::Python pybind11::embed)
+# Link against libraries
+target_link_libraries(${PROJECT_NAME} ${WIRINGPI_LIBRARIES}) 
 ament_target_dependencies(${PROJECT_NAME} rclcpp std_msgs )
 
 install(

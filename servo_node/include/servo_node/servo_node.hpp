@@ -6,9 +6,6 @@
 #include <rclcpp/subscription.hpp>
 #include <string>
 #include "kalman.hpp"
-#include <pybind11/embed.h>
-
-namespace py = pybind11;
 
 class __attribute__ ((visibility ("hidden"))) ServoNode : public rclcpp::Node {
 public:
