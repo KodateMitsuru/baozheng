@@ -35,6 +35,8 @@ private:
     
     Kalman<V_Z, V_X> kf;
     rclcpp::Subscription<std_msgs::msg::Int8>::SharedPtr servo_sub_;
+    std::shared_ptr<rclcpp::ParameterEventHandler> param_sub_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> cb_handle_;
 
 };
 

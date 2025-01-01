@@ -21,6 +21,12 @@ ServoNode::ServoNode(std::string node_name) :
             changeMode(*msg);
         }
     );
+    param_sub_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
+    //Lambda表达式
+    auto alpha_cb = [this](const rclcpp::Parameter & p) {
+        this->alpha = p.as_int();
+    };
+    cb_handle_ = param_sub_->add_parameter_callback("alpha", alpha_cb);
 }
 
 void ServoNode::changeMode(const std_msgs::msg::Int8 mode) {

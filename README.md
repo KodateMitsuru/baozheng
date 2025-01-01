@@ -25,7 +25,7 @@ colcon build --symlink-install
 ### sample command
 
 ```shell
-ros2 topic pub /servo_node/mode std_msgs/msg/Int8 'data: 1' #启动舵机
+ros2 topic pub /servo_node/mode std_msgs/msg/Int8 'data: 1' -1 #启动舵机
 ros2 topic pub /audio_node/play std_msgs/msg/String "data: 'assets/music/igs.mp3'" -1 #播放音频
 ros2 topic pub /audio_node/stop std_msgs/msg/Bool "data: true" -1 #停止音频
 ```

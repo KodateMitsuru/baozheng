@@ -44,9 +44,11 @@ class Steer{
     }
 
     void run(int alpha){
-        if(alpha>=0 && alpha<=270){
+        if(alpha>=0 && alpha<=360){
             pwm.change_duty_cycle(alpha2frequency(alpha));
-            delay(alpha/3*10);
+            delay(alpha/3*20);
+            pwm.change_duty_cycle(alpha2frequency(90));
+            delay(alpha/3*20);
             pwm.change_duty_cycle(0);
         }
     }
@@ -57,5 +59,4 @@ int MyGPIO::init_count=0;
 void servo_rotate(int alpha){
     Steer steer(18);//gpio接口固定为BCM编码下的18，板载编码下为12
     steer.run(alpha);
-    steer.run(90);
 }
