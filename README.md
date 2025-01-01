@@ -11,8 +11,7 @@ colcon build --symlink-install
 ## 运行
 
 ```bash
-source install/setup.sh
-ros2 launch startup.py
+./start.sh
 ```
 
 ## topic
@@ -23,7 +22,7 @@ ros2 launch startup.py
 /audio_node/stop
 ```
 
-### smaple command
+### sample command
 
 ```shell
 ros2 topic pub /servo_node/mode std_msgs/msg/Int8 'data: 1' #启动舵机
