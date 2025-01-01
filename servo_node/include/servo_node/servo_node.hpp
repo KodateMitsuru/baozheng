@@ -17,6 +17,7 @@ public:
     void changeMode(const std_msgs::msg::Int8 mode);
 
 private:
+    bool is_close = false;
     int mode = 0;
     int hz;
     int alpha;//指定角度

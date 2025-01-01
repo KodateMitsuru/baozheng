@@ -61,9 +61,11 @@ void ServoNode::drive_servo() {
     filtered_angle = double(updatedState[0]);
     switch(this->mode){
         case 0:
+            close_servo();
             break;
         case 1:{
             //something to drive the servo
+            is_close = false;
             servo_rotate(alpha);
             RCLCPP_INFO(this->get_logger(), "servo_rotate(%d)", alpha);
             // servo_rotate(40);
@@ -76,6 +78,12 @@ void ServoNode::drive_servo() {
 
 void ServoNode::close_servo() {
     //something to close the servo
+    if (is_close) {
+        return;
+    } else {
+        softPwmStop(18);
+        is_close = true;
+    }
     RCLCPP_INFO(this->get_logger(),  "closed successfully!");
 }
 
